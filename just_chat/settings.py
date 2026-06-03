@@ -75,8 +75,12 @@ WSGI_APPLICATION = 'just_chat.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': 'db',
+        'PORT': '5432',
     }
 }
 
@@ -125,6 +129,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DJANGO_VITE = {
   "default": {
-    "dev_mode": True
+    "dev_mode": True,
+    "dev_server_host": "localhost",
+    "dev_server_port": 5173,
+    "static_url_prefix": "",
   }
 }
+

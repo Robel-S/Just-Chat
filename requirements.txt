@@ -1,0 +1,12 @@
+asgiref==3.11.1
+black==26.5.1
+click==8.4.1
+Django==6.0.5
+django-vite==3.1.0
+mypy_extensions==1.1.0
+packaging==26.2
+pathspec==1.1.1
+platformdirs==4.9.6
+pytokens==0.4.1
+sqlparse==0.5.5
+psycopg2-binary==2.9.12

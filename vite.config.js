@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
     plugins: [react()],
-    base: '/static/', // This should match Django's settings.STATIC_URL
+    base: '/static', // This should match Django's settings.STATIC_URL
     build: {
         // Where Vite will save its output files.
         // This should be something in your settings.STATICFILES_DIRS
@@ -20,6 +20,13 @@ export default defineConfig({
                 // Output JS bundles to js/ directory with -bundle suffix
                 entryFileNames: `js/[name]-bundle.js`,
             },
+        },
+    },
+    server: {
+        host: '0.0.0.0',
+        port: 5173,
+        watch: {
+            usePolling: true,
         },
     },
 });

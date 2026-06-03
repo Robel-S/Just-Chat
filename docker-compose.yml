@@ -1,0 +1,32 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/chat-app
+    depends_on:
+      - db
+      - react
+
+  db:
+    image: postgres:17
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - "POSTGRES_HOST_AUTH_METHOD=trust"
+
+  react:
+    build:
+      context: .
+      dockerfile: ./assets/Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/chat-app
+      - /chat-app/assets/node_modules
+    command: npm run dev -- --host
+
+volumes:
+  postgres_data:
