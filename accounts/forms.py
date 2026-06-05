@@ -8,6 +8,10 @@ class CustomUserCreationForm(UserCreationForm):
             "email",
             "username",
         )
+        help_texts = {
+            'username': '',
+            'email': '',
+        }
 
 class CustomUserChangeForm(UserChangeForm):
     class Meta:
@@ -16,3 +20,7 @@ class CustomUserChangeForm(UserChangeForm):
             "email",
             "username",
         )
+        help_texts = {
+            'username': '',
+            'email': '',
+        }

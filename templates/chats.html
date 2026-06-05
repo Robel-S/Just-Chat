@@ -1,0 +1,8 @@
+{% extend "base.html" %}
+
+{% block title %}Chats{% endblock title %}
+
+{% block content %}
+    {% if user.is_authenticated %}
+        <p>Hi {{user.username}} </p>
+{% endblock content}

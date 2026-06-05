@@ -1,0 +1,13 @@
+@import "./index.css";
+
+body {
+    background: oklch(92.8% 0.006 264.531);
+}
+
+
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
+}

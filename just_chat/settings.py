@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     
     #local
     'accounts.apps.AccountsConfig',
+    'pages.apps.PagesConfig',
 ]
 
 AUTH_USER_MODEL = "accounts.CustomUser"

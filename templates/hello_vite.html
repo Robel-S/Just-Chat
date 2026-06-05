@@ -1,14 +1,10 @@
+{% extends "base.html" %}
 {% load django_vite %}
-<html>
 
-<head>
-    <title>Getting Started with Django and Vite</title>
-    {% vite_hmr_client %}
-</head>
+{% block title %}test{% endblock title %}
 
-<body>
-    <div id="root"></div>
+{% block content %}
+    <div id='root'></div> 
     {% vite_asset 'assets/hello.jsx' %}
-</body>
+{% endblock content %}
 
-</html>
