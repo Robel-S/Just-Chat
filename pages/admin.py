@@ -1,3 +1,8 @@
 from django.contrib import admin
 
-# Register your models here.
+from .models import Chats, ChatMembers, Friends, FriendRequests
+
+admin.site.register(Chats)
+admin.site.register(ChatMembers)
+admin.site.register(Friends)
+admin.site.register(FriendRequests)

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     
     #third-party
     'django_vite',
+    'rest_framework',
     
     #local
     'accounts.apps.AccountsConfig',
@@ -144,3 +145,4 @@ DJANGO_VITE = {
   }
 }
 
+LOGIN_REDIRECT_URL = ""

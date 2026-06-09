@@ -10,3 +10,5 @@ platformdirs==4.9.6
 pytokens==0.4.1
 sqlparse==0.5.5
 psycopg2-binary==2.9.12
+djangorestframework==3.17.1
+markdown==3.10.2
