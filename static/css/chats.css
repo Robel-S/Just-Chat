@@ -1,0 +1,42 @@
+aside{
+    height: 100vh;
+    width: 20%;
+    background-color: black;
+    border: 2px solid lightgreen;
+}
+
+.chat-section{
+    height: 10%;
+    width:100%;
+    display: flex;
+    flex-direction: row;
+    margin: 0;
+    border-bottom: 1px solid lightgreen;
+    border-style: 1px solid lightgreen;
+}
+
+.chat-text{
+    display: flex;
+    flex-direction: column;
+    margin-right: var(--space-5);
+}
+
+.chat-title{
+    color: lightgreen;
+    font-size: var(--text-2xl);
+    margin-top: var(--space-5);
+}
+
+.chat-last_message{
+    color: green;
+    font-size: var(--text-m);
+    font-style: italic;
+    margin-top: var(--space-1);
+}
+img{
+    height: 64px;
+    width: 64px;
+    border-radius: 45px;
+    margin: auto;
+    
+}

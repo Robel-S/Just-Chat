@@ -1,0 +1,39 @@
+{% load django_vite %}
+{% load static %}
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block title %}Just-Chat{% endblock title %}</title>
+        {% vite_hmr_client %}
+        <link rel="stylesheet" href="{% static 'css/base.css' %}">
+        <script src="https://kit.fontawesome.com/4d87100c05.js" crossorigin="anonymous"></script>
+        {% block styles %}{% endblock styles %}
+    </head>
+
+    <body>
+        {% if user.is_authenticated %}
+        <header>
+            <div class="icon">
+                <h2 class="header-title">Just-Chat</h2>
+                <i class="fa-solid fa-message"></i>
+            </div>
+            <nav class="navbar">
+                <ul class="links">
+                    <li><a href="chats" class="link">Chats</a></li>
+                    <li><a href="friends" class="link">Friends</a></li>
+                    <li><a href="" class="link">Profile</a></li>
+                </ul>
+            </nav>
+        </header>
+        <div class="container">
+            {% block content %}
+            {% endblock content %}
+        </div>
+        {% else %}
+            <h1>Please Login</h1>
+        {% endif %}
+    </body>
+
+</html>

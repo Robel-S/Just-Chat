@@ -1,8 +1,12 @@
-{% extend "base.html" %}
+{% extends "loginbase.html" %}
+{% load django_vite %}
+{% load static %}
 
 {% block title %}Chats{% endblock title %}
+{% block styles %}<link rel="stylesheet", href="{% static 'css/chats.css' %}"> {% endblock styles %}
+
 
 {% block content %}
-    {% if user.is_authenticated %}
-        <p>Hi {{user.username}} </p>
-{% endblock content}
+    <div id='root'></div> 
+    {% vite_asset 'assets/chats.jsx' %}
+{% endblock content %}

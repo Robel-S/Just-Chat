@@ -14,7 +14,7 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 'index': path.resolve(__dirname, './assets/index.js'),
-                'hello': path.resolve(__dirname, './assets/hello.jsx'),
+                'hello': path.resolve(__dirname, './assets/chats.jsx'),
             },
             output: {
                 // Output JS bundles to js/ directory with -bundle suffix
