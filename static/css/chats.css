@@ -1,42 +1,105 @@
+body{
+    overflow-y: hidden;
+    overflow-x: hidden;
+}
+#root{
+    display: flex;
+    flex-direction: row;
+    font-family: sans-serif;
+}
+
 aside{
-    height: 100vh;
-    width: 20%;
+    height: 92vh;
+    width: 30vw;
+    overflow-y: auto;
+    overflow-x: hidden;
+    
+    min-width: 240px;
+    max-width: 380px;
+
     background-color: black;
     border: 2px solid lightgreen;
+
+    display: flex;
+    flex-direction: column;
 }
 
 .chat-section{
-    height: 10%;
     width:100%;
     display: flex;
     flex-direction: row;
-    margin: 0;
+    align-items: center;
+    
+    padding: var(--space-3);
+    gap: var(--space-3);
+
     border-bottom: 1px solid lightgreen;
     border-style: 1px solid lightgreen;
 }
 
+.chat-section.selected {
+    background-color: darkslategrey;
+}
 .chat-text{
     display: flex;
     flex-direction: column;
-    margin-right: var(--space-5);
+    flex: 1;
 }
 
 .chat-title{
     color: lightgreen;
-    font-size: var(--text-2xl);
-    margin-top: var(--space-5);
+    font-size: clamp(var(--text-4), 1.2vw, var(--text-5));
+    margin-top: 0;
 }
 
 .chat-last_message{
     color: green;
-    font-size: var(--text-m);
+    font-size: clamp(var(--text-3), 1vw, var(--text-4));
     font-style: italic;
-    margin-top: var(--space-1);
 }
+
 img{
-    height: 64px;
-    width: 64px;
-    border-radius: 45px;
-    margin: auto;
-    
+    width: clamp(48px, 4vw, 64px);
+    height: clamp(48px, 4vw, 64px);
+    border-radius: 50%;    
+}
+
+#message-elems{
+    display: flex;
+    flex-direction: column;
+}
+
+#chatBox{
+    display: flex;
+    flex-direction: column;
+    height: 80vh;
+    width: 75vw;
+    background-color: black;
+    border: solid 2px lightgreen;
+
+}
+
+#message-box{
+    display: flex;
+    flex-direction: row;
+    height: 11.6vh;
+    width: 75vw;
+    align-items: center;
+    justify-content: left;
+    background-color: black;
+    border: solid 2px lightgreen;
+}
+#text-box{
+    color: lightgreen;
+    background-color: transparent;
+    border: 0;
+    font-size: 32px;
+    height: 32px;
+    margin-left: var(--space-3);
+}
+#text-box::placeholder{
+    color:lightgreen;
+}
+#text-box:hover{
+    border: 0;
 }

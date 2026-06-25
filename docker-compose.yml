@@ -32,13 +32,12 @@ services:
 
   redis:
       image: redis:latest
+      command: redis-server --timeout 300 --tcp-keepalive 60 --appendonly yes
       container_name: my-redis
       ports:
           - '6379:6379'
       volumes:
           - redis-data:/data
-      environment:
-          - REDIS_ARGS=--requirepass your_password_here --appendonly yes
       restart: unless-stopped
 
 volumes:

@@ -4,6 +4,8 @@ from django.views.generic import TemplateView
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .serializers import (
     ChatSerializer,
@@ -15,6 +17,7 @@ from .serializers import (
 from .models import Chats, ChatMembers, Friends, FriendRequests, Messages, Attachments
 
 
+# API that serves a list of all of the current users chats
 class ChatAPIView(generics.ListAPIView):
     serializer_class = ChatSerializer
     permission_classes = [IsAuthenticated]
@@ -23,16 +26,20 @@ class ChatAPIView(generics.ListAPIView):
         return Chats.objects.filter(chatmembers__user=self.request.user).distinct()
 
 
+# API that serves a list of all of the current users friends
 class FriendAPIView(generics.ListAPIView):
     serializer_class = FriendSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+
+        # Get all friends where user is either the initiator or recipient of the friendship
         return Friends.objects.filter(
             Q(user=self.request.user) | Q(friend=self.request.user)
         )
 
 
+# API that serves a list of all of the current users friend requests
 class FriendRequestAPIView(generics.ListAPIView):
     serializer_class = FriendRequestSerializer
     permission_classes = [IsAuthenticated]
@@ -41,6 +48,7 @@ class FriendRequestAPIView(generics.ListAPIView):
         return FriendRequests.objects.filter(receiver=self.request.user)
 
 
+# API that serves a list of all of the messages in a specified chat
 class MessageAPIView(generics.ListAPIView):
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated]
@@ -53,18 +61,7 @@ class MessageAPIView(generics.ListAPIView):
         return Messages.objects.filter(chat=chat)
 
 
-class CreateMessageAPIView(generics.CreateAPIView):
-    serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated]
-
-    def perform_create(self, serializer):
-        chat_id = self.kwargs["chat_id"]
-        membership = get_object_or_404(
-            ChatMembers, chat_id=chat_id, user=self.request.user
-        )
-        serializer.save(chat=membership.chat, user=self.request.user)
-
-
+# API that serves all of the attachments tied to a specified message
 class AttachmentAPIView(generics.ListAPIView):
     serializer_class = AttachmentSerializer
     permission_classes = [IsAuthenticated]
@@ -74,6 +71,20 @@ class AttachmentAPIView(generics.ListAPIView):
         return Attachments.objects.filter(message=message)
 
 
+# API that returns the current users id and username
+class CurrentUserAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(
+            {
+                "id": request.user.id,
+                "username": request.user.username,
+            }
+        )
+
+
+# View that displays the main chat page
 class ChatView(TemplateView):
     template_name = "chats.html"
     permission_classes = [IsAuthenticated]

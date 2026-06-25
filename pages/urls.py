@@ -5,9 +5,9 @@ from .views import (
     FriendAPIView,
     FriendRequestAPIView,
     MessageAPIView,
+    CurrentUserAPIView,
     ChatView,
     AttachmentAPIView,
-    CreateMessageAPIView,
 )
 
 urlpatterns = [
@@ -16,14 +16,10 @@ urlpatterns = [
     path("api/friend_requests", FriendRequestAPIView.as_view(), name="requests_api"),
     path("api/<int:chat_id>/messages/", MessageAPIView.as_view(), name="messages_api"),
     path(
-        "api/<int:chat_id>/create_messages/",
-        CreateMessageAPIView.as_view(),
-        name="create_messages_api",
-    ),
-    path(
         "api/<int:message_id>/attachments/",
         AttachmentAPIView.as_view(),
         name="attachments_api",
     ),
+    path("api/me", CurrentUserAPIView.as_view(), name="me"),
     path("chats", ChatView.as_view(), name="chats"),
 ]

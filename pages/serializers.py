@@ -37,9 +37,11 @@ class FriendRequestSerializer(serializers.ModelSerializer):
 
 
 class MessageSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+
     class Meta:
         model = Messages
-        fields = ("id", "chat", "user", "text", "timestamp")
+        fields = ("id", "chat", "user", "username", "text", "timestamp")
         read_only_fields = ("id", "chat", "user", "timestamp")
 
 
