@@ -95,3 +95,16 @@ class ChatView(TemplateView):
         context["is_authenticated"] = self.request.user.is_authenticated
 
         return context
+
+
+# View that displays the main chat page
+class FriendView(TemplateView):
+    template_name = "friends.html"
+    permission_classes = [IsAuthenticated]
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["user"] = self.request.user
+        context["is_authenticated"] = self.request.user.is_authenticated
+
+        return context

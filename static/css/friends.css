@@ -1,0 +1,18 @@
+#root{
+    display: flex;
+    flex-direction: column;
+    font-family: sans-serif;
+    margin-left: var(--space-8);
+}
+
+.request{
+    display: flex;
+    flex-direction: row;
+    margin-left: var(--space-6);
+}
+
+.friend{
+    display: flex;
+    flex-direction: row;
+    margin-left: var(--space-6);
+}

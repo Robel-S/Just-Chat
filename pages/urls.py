@@ -7,6 +7,7 @@ from .views import (
     MessageAPIView,
     CurrentUserAPIView,
     ChatView,
+    FriendView,
     AttachmentAPIView,
 )
 
@@ -22,4 +23,5 @@ urlpatterns = [
     ),
     path("api/me", CurrentUserAPIView.as_view(), name="me"),
     path("chats", ChatView.as_view(), name="chats"),
+    path("friends", FriendView.as_view(), name="friends"),
 ]
