@@ -5,6 +5,7 @@ import { faEllipsisVertical } from '@fortawesome/free-solid-svg-icons';
 import { faFileImage, faFile } from '@fortawesome/free-solid-svg-icons';
 import { faTimes } from '@fortawesome/free-solid-svg-icons';
 
+/** Return a named cookie value, primarily for Django CSRF requests. */
 export function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -21,12 +22,14 @@ export function getCookie(name) {
     return cookieValue;
 }
 
+/** Build a WebSocket URL using the page's current protocol and host. */
 export function getWebSocketUrl(path) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${protocol}//${window.location.host}${path}`;
 }
 
 //componeent that holds the entire app
+/** Coordinate Chat selection, history, live messages, and unread state. */
 export function ChatPage() {
     const [chatId, setChatId] = useState(null); //stores id of the current selected chat
     const [user, setUser] = useState(null); //holds the current user thats logged in
@@ -66,6 +69,7 @@ export function ChatPage() {
 
     // 2. Fetch User & Initial Chats Unread Counts
     useEffect(() => {
+        /** Load the current user before rendering user-specific Chat data. */
         async function initializeData() {
             try {
                 const userRes = await fetch('/api/me', { credentials: 'include' });
@@ -96,6 +100,7 @@ export function ChatPage() {
             return;
         }
 
+        /** Load history for the selected Chat and mark it as read. */
         async function loadMessages() {
             const response = await fetch(`/api/${chatId}/messages`);
             const data = await response.json();
@@ -188,6 +193,7 @@ export function ChatPage() {
 }
 
 //display user's chats in a sidebar
+/** Render the requester's Chats and provide Chat-level actions. */
 export function ChatSidebar({ chatId, onSetChat, user, setChatOwner, unreadCounts }) {
     const [chatList, setChatList] = useState([]);
     const [createModal, setCreateModal] = useState(false);
@@ -196,6 +202,7 @@ export function ChatSidebar({ chatId, onSetChat, user, setChatOwner, unreadCount
 
     const csrftoken = getCookie('csrftoken');
 
+    /** Refresh the Chats visible to the current user. */
     async function loadChats() {
         const response = await fetch('/api/chats');
         const data = await response.json();
@@ -208,6 +215,7 @@ export function ChatSidebar({ chatId, onSetChat, user, setChatOwner, unreadCount
 
 
     useEffect(() => {
+        /** Close an open Chat menu when a click lands outside it. */
         const handleClickOutside = (event) => {
             if (!event.target.closest('.chat-menu-container')) {
             setOpenMenuId(null); // Close active menu
@@ -218,6 +226,7 @@ export function ChatSidebar({ chatId, onSetChat, user, setChatOwner, unreadCount
         return () => document.removeEventListener('click', handleClickOutside);
     }, []);
 
+    /** Delete a Chat after the owner confirms the destructive action. */
     async function handleDelete(chatId){
         try{
             await fetch(`/api/chats/${chatId}/`, {
@@ -233,6 +242,7 @@ export function ChatSidebar({ chatId, onSetChat, user, setChatOwner, unreadCount
             console.error(err);
         }
     }
+    /** Remove the current user's membership from a Chat. */
     async function handleLeave(chatId){
         try{
             const response = await fetch(`/api/members/${chatId}/${user.id}/edit/`, {
@@ -253,11 +263,13 @@ export function ChatSidebar({ chatId, onSetChat, user, setChatOwner, unreadCount
         }
     }
 
+    /** Open the edit modal for a selected Chat. */
     function handleEdit(chatId) {
         setEditModal(true);
         setOpenMenuId(null);
     }
 
+    /** Toggle the action menu for a Chat row. */
     function toggleMenu(chat) {
         setOpenMenuId((current) => current === chat.id ? null : chat.id);
     }
@@ -335,6 +347,7 @@ export function ChatSidebar({ chatId, onSetChat, user, setChatOwner, unreadCount
     )
 }
 
+/** Collect Chat details and create a Chat with selected members. */
 export function ChatModal({ openModal, setOpenModal, user, onSaved }){
     const [chatName, setChatName] = useState("");
     const [query, setQuery] = useState("");
@@ -347,6 +360,7 @@ export function ChatModal({ openModal, setOpenModal, user, onSaved }){
 
     useEffect(() => {
         if (openModal) {
+            /** Load friends that may be added to the new Chat. */
             async function loadFriends() {
                 const response = await fetch('/api/friends');
                 const data = await response.json();
@@ -362,6 +376,7 @@ export function ChatModal({ openModal, setOpenModal, user, onSaved }){
         return friendUsername.toLowerCase().includes(query.toLowerCase());
     });
 
+    /** Add or remove a friend from the pending Chat membership list. */
     const handleFriendSelect = (e) => {
         setSelectedFriends(prev => {
             if (e.target.checked) {
@@ -372,6 +387,7 @@ export function ChatModal({ openModal, setOpenModal, user, onSaved }){
         console.log(selectedFriends);
     }
 
+    /** Create the Chat and then persist its selected memberships. */
     async function handleSubmit(e) {
         e.preventDefault();
         setError(null);
@@ -430,6 +446,7 @@ export function ChatModal({ openModal, setOpenModal, user, onSaved }){
         }
     }
 
+     /** Reset the creation form and close its modal. */
      function closeModal() {
         setOpenModal(false);
         setChatName("");
@@ -499,6 +516,7 @@ export function ChatModal({ openModal, setOpenModal, user, onSaved }){
     )
 }
 
+/** Edit a Chat's details and membership selection. */
 export function EditModal ({openModal, setOpenModal, user, chatId, onSaved}) {
     const [chatName, setChatName] = useState("");
     const [query, setQuery] = useState("");
@@ -512,6 +530,7 @@ export function EditModal ({openModal, setOpenModal, user, chatId, onSaved}) {
 
     useEffect(() => {
         if (openModal && chatId) {
+            /** Load the Chat and eligible friends needed by the edit form. */
             async function loadModalData() {
                 const [friendsResponse, membersResponse] = await Promise.all([
                     fetch('/api/friends'),
@@ -530,6 +549,7 @@ export function EditModal ({openModal, setOpenModal, user, chatId, onSaved}) {
         return friendUsername.toLowerCase().includes(query.toLowerCase()) && !chatMembers.some(member => member.username === friendUsername);
     });
 
+    /** Add or remove a friend from the edited membership list. */
     const handleFriendSelect = (e) => {
         setSelectedFriends(prev => {
             if (e.target.checked) {
@@ -540,6 +560,7 @@ export function EditModal ({openModal, setOpenModal, user, chatId, onSaved}) {
         console.log(selectedFriends);
     }
 
+    /** Persist the edited Chat and newly selected memberships. */
     async function handleSubmit(e) {
         e.preventDefault();
         setError(null);
@@ -597,6 +618,7 @@ export function EditModal ({openModal, setOpenModal, user, chatId, onSaved}) {
         }
     }
 
+     /** Reset edit state and close the modal. */
      function closeModal() {
         setOpenModal(false);
         setChatName("");
@@ -667,6 +689,7 @@ export function EditModal ({openModal, setOpenModal, user, chatId, onSaved}) {
     )
 }
 //displays chat messages in a box
+/** Render canonical Message projections for the selected Chat. */
 export function ChatDisplay({ chatId, messages }) {
     const chatBox = useRef(null);
     useEffect(() => {
@@ -682,6 +705,7 @@ export function ChatDisplay({ chatId, messages }) {
         )
     }
 
+    /** Return whether an attachment URL has a supported image extension. */
     const isImage = (url) => {
         const path = url.split(/[?#]/, 1)[0].toLowerCase();
         return /\.(jpg|jpeg|png|gif|webp)$/.test(path);
@@ -742,6 +766,7 @@ export function ChatDisplay({ chatId, messages }) {
 }
 
 //textbox where user types and sends messages
+/** Compose text and attachments for the current WebSocket send workflow. */
 export function ChatMessageBox({ chatId, send }) {
     const [text, setText] = useState(""); //stores current message in the textbox
     const [attachments, setAttachments] = useState([]);
@@ -752,6 +777,7 @@ export function ChatMessageBox({ chatId, send }) {
 
 
     //once user submits a message it trims it and sends over the websocket connection in JSON format
+    /** Upload selected files, then send one Message composition. */
     const handleSubmit = async (e) => {
         e.preventDefault()
         if (!chatId || (!text.trim() && attachments.length === 0)) return;
@@ -800,6 +826,7 @@ export function ChatMessageBox({ chatId, send }) {
         }
     };
 
+    /** Submit on Enter while preserving Shift+Enter for new lines. */
     const handleKeyDown = (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -807,6 +834,7 @@ export function ChatMessageBox({ chatId, send }) {
         }
     }
 
+    /** Resize the composer to fit its text without manual dragging. */
     const handleResize = (e) => {
         const element = e.target;
 
@@ -825,12 +853,14 @@ export function ChatMessageBox({ chatId, send }) {
         setText(element.value);
     };
 
+    /** Append images selected by the image input. */
     const handleImageChange = (e) => {
         const file = e.target.files[0]
         if (file) {
             setAttachments(prevAttachments => [...prevAttachments, file]);
         }
     }
+    /** Append files selected by the general attachment input. */
     const handleFileChange = (e) => {
         const file = e.target.files[0]
         if (file) {
@@ -838,6 +868,7 @@ export function ChatMessageBox({ chatId, send }) {
         }
     }
 
+    /** Remove one pending attachment by its displayed index. */
     const removeAttachment = (index) => {
         setAttachments(prevAttachments => prevAttachments.filter((_, i) => i !== index))
     }
@@ -876,6 +907,7 @@ export function ChatMessageBox({ chatId, send }) {
     )
 }
 
+/** Display current Chat Members and owner-only removal controls. */
 export function MembersSidebar({ chatId, user, chatOwner }) {
     const [chatMembers, setChatMembers] = useState([]);
     const [error, setError] = useState("");
@@ -884,6 +916,7 @@ export function MembersSidebar({ chatId, user, chatOwner }) {
 
     useEffect(() => {
         if (chatId) {
+            /** Refresh memberships for the selected Chat. */
             async function loadChatMembers() {
                 try {
                     const response = await fetch(`/api/members/${chatId}`);
@@ -901,6 +934,7 @@ export function MembersSidebar({ chatId, user, chatOwner }) {
         }
     }, [chatId]);
 
+    /** Remove a confirmed member and refresh membership state. */
     const handleRemoveMember = async (userId, chatId, username) => {
         if (window.confirm(`Are you sure you want to remove ${username} from this chat?`)) {
             try {

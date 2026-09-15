@@ -17,6 +17,7 @@ class NotAChatMember(PermissionError):
 
 @transaction.atomic
 def create_message_composition(*, chat_id, author, text, attachments):
+    """Atomically create a Message and schedule its post-commit live events."""
     membership = (
         ChatMembers.objects.select_for_update()
         .select_related("chat")
@@ -56,6 +57,7 @@ def create_message_composition(*, chat_id, author, text, attachments):
 
 
 def _publish_creation(projection, unread_events):
+    """Best-effort publish a committed Message and its unread updates."""
     channel_layer = get_channel_layer()
     events = [
         (

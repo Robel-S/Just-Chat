@@ -1,7 +1,7 @@
 @import "./index.css";
 
 body {
-    background: oklch(92.8% 0.006 264.531);
+    background: var(--bg-main);
     margin: 0;
 }
 
@@ -9,29 +9,32 @@ button,
 input,
 select,
 textarea {
-    font-family: inherit;
+    font-family: var(--font-terminal);
 }
 
 header{
     display: flex;
     flex-direction: row;
-    background-color:black;
+    background-color: var(--bg-main);
     align-items: center;
     width: 100vw;
     height: 8vh;
-    border: solid 2px lightgreen;
+    border: solid 2px var(--border-green);
+    border-left: 0;
+    border-right: 0;
 }
 
 .icon{
     display: flex;
     flex-direction: row;
+    justify-content: left;
     margin-left: var(--space-7);
     gap: var(--space-2);
 }
 .header-title{
-    color: lightgreen;
+    color: var(--terminal-green);
     margin: auto;
-    font: inherit;
+    font-family: var(--font-header);
     font-weight: bold;
     font-size: var(--text-2xl);
 }
@@ -42,23 +45,44 @@ header{
     font-size: var(--text-2xl);
 }
 
+.navbar{
+    display: flex;
+    flex-direction: row;
+    margin-left: auto;
+    padding-right: var(--space-7);
+}
+
 .links{
     display: flex;
     flex-direction: row;
+    align-items: center;
     font-size: var(--text-xl);
     gap: var(--space-2);
-    position: relative;
-    left: 65vw;
     list-style-type: none;
 }
 
 .link{
-    color: lightgreen;
+    color: var(--terminal-green);
     text-decoration: none;
-    font: inherit;
+    font-family: var(--font-header);
     font-weight: bold;
 }
 .link:hover{
-    color: darkgreen;
+    color: var(--text-muted);
 }
 
+.profile-pic{
+    border-radius: 50%;
+    object-fit:contain;
+    height: clamp(32px, 2.5vw, 48px);
+    width: clamp(32px, 2.5vw, 48px);
+    border: solid 2px var(--border-green);
+}
+
+.logout-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: inherit; 
+}

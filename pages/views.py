@@ -31,6 +31,7 @@ class ChatAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """List only Chats containing the requesting user."""
         return Chats.objects.filter(chatmembers__user=self.request.user).distinct()
 
 
@@ -39,6 +40,7 @@ class CreateChatAPIView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
+        """Create a Chat owned by the requester and add their membership."""
         chat = serializer.save(owner=self.request.user)
         ChatMembers.objects.create(chat=chat, user=self.request.user)
 
@@ -50,6 +52,7 @@ class handleChatAPIView(generics.RetrieveUpdateDestroyAPIView):
     lookup_url_kwarg = "chat_id"
 
     def get_queryset(self):
+        """Limit reads to members and mutations to the Chat owner."""
         queryset = Chats.objects.filter(chatmembers__user=self.request.user)
         if self.request.method in {"PUT", "PATCH", "DELETE"}:
             queryset = queryset.filter(owner=self.request.user)
@@ -61,6 +64,7 @@ class ChatMembersAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """List memberships only when the requester belongs to the Chat."""
         return ChatMembers.objects.filter(
             chat=self.kwargs["chat_id"],
             chat__chatmembers__user=self.request.user,
@@ -71,6 +75,7 @@ class MarkChatReadAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, chat_id):
+        """Reset the requester's unread count for a Chat they belong to."""
         membership = get_object_or_404(
             ChatMembers,
             chat_id=chat_id,
@@ -91,6 +96,7 @@ class handleChatMembersAPIView(generics.RetrieveUpdateDestroyAPIView):
     lookup_url_kwarg = "user_id"
 
     def get_queryset(self):
+        """Allow owners to manage members and users to remove themselves."""
         return ChatMembers.objects.filter(
             user=self.kwargs["user_id"],
             chat=self.kwargs["chat_id"],
@@ -98,6 +104,7 @@ class handleChatMembersAPIView(generics.RetrieveUpdateDestroyAPIView):
 
     @transaction.atomic
     def delete(self, request, *args, **kwargs):
+        """Remove a member, reassign ownership, or delete a depleted Chat."""
         instance = self.get_object()
         chat = instance.chat
         leaving_user = instance.user
@@ -139,6 +146,7 @@ class CreateChatMembersAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, chat_id):
+        """Add validated users to a Chat owned by the requester."""
         chat = get_object_or_404(Chats, pk=chat_id, owner=request.user)
 
         data = [{"user": member_id} for member_id in request.data.get("members", [])]
@@ -158,6 +166,7 @@ class FriendAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """List friendships where the requester is either user."""
 
         # Get all friends where user is either the initiator or recipient of the friendship
         return Friends.objects.filter(
@@ -170,6 +179,7 @@ class CreateFriendAPIView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
+        """Create a friendship owned by the requesting user."""
         serializer.save(user=self.request.user)
 
 
@@ -179,6 +189,7 @@ class FriendRequestAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """List friend requests addressed to the requesting user."""
         return FriendRequests.objects.filter(receiver=self.request.user)
 
 
@@ -187,6 +198,7 @@ class CreateFriendRequestAPIView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
+        """Create a pending friend request from the requesting user."""
         serializer.save(sender=self.request.user, status="Pending")
 
 
@@ -197,6 +209,7 @@ class UpdateFriendRequestAPIView(generics.UpdateAPIView):
     lookup_url_kwarg = "sender_id"
 
     def get_queryset(self):
+        """Allow users to update only friend requests addressed to them."""
         return FriendRequests.objects.filter(receiver=self.request.user)
 
 
@@ -206,6 +219,7 @@ class MessageAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """List Message history only for a current Chat Member."""
         chat = get_object_or_404(
             Chats.objects.filter(chatmembers__user=self.request.user),
             pk=self.kwargs["chat_id"],
@@ -219,6 +233,7 @@ class AttachmentAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """List Attachments only when the requester belongs to their Chat."""
         message = get_object_or_404(
             Messages.objects.filter(chat__chatmembers__user=self.request.user),
             pk=self.kwargs["message_id"],
@@ -231,6 +246,7 @@ class CreateAttachmentsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        """Store uploaded files and return metadata for legacy composition."""
         files = request.FILES.getlist("file")
 
         if not files:
@@ -261,6 +277,7 @@ class CurrentUserAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        """Return the authenticated user's browser-facing profile fields."""
         return Response(
             {
                 "id": request.user.id,
@@ -278,6 +295,7 @@ class UserSearchAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """Find non-friends without an existing request relationship."""
         query = self.kwargs.get("q", "")
 
         exclude_ids = {self.request.user.id}
@@ -312,6 +330,7 @@ class FriendSearchAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """Find the requester's friendships matching a username query."""
         query = self.kwargs.get("q", "")
         return Friends.objects.filter(
             Q(user=self.request.user, friend__username__icontains=query)
@@ -325,6 +344,7 @@ class ChatView(LoginRequiredMixin, TemplateView):
     permission_classes = [IsAuthenticated]
 
     def get_context_data(self, **kwargs):
+        """Expose the authenticated user to the Chat page template."""
         context = super().get_context_data(**kwargs)
         context["user"] = self.request.user
         context["is_authenticated"] = self.request.user.is_authenticated
@@ -338,6 +358,7 @@ class FriendView(LoginRequiredMixin, TemplateView):
     permission_classes = [IsAuthenticated]
 
     def get_context_data(self, **kwargs):
+        """Expose the authenticated user to the friends page template."""
         context = super().get_context_data(**kwargs)
         context["user"] = self.request.user
         context["is_authenticated"] = self.request.user.is_authenticated

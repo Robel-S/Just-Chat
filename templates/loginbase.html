@@ -21,9 +21,16 @@
             </div>
             <nav class="navbar">
                 <ul class="links">
-                    <li><a href="chats" class="link">Chats</a></li>
-                    <li><a href="friends" class="link">Friends</a></li>
-                    <li><a href="" class="link">Profile</a></li>
+                    <li><a href="{% url 'chats' %}" class="link">Chats</a></li>
+                    <li><a href="{% url 'friends' %}" class="link">Friends</a></li>
+                    <li><a href="{% url 'edit_profile' %}" class="link">Profile</a></li>
+                    <li>
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="link logout-btn">Logout</button>
+                        </form>
+                    </li>
+                    <li><img src="{{ user.prof_pic.url }}" alt="Profile Picture" class="profile-pic"></li>
                 </ul>
             </nav>
         </header>

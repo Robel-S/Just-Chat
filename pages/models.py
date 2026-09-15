@@ -44,6 +44,7 @@ class FriendRequests(models.Model):
         ]
 
     def clean(self):
+        """Reject a second request between the same users in reverse order."""
         if self.sender_id and self.receiver_id:
             if FriendRequests.objects.filter(
                 sender=self.receiver,
@@ -54,6 +55,7 @@ class FriendRequests(models.Model):
                 )
 
     def save(self, *args, **kwargs):
+        """Validate request invariants before persisting the model."""
         self.full_clean()
         super().save(*args, **kwargs)
 

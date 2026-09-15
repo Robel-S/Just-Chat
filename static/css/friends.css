@@ -1,8 +1,35 @@
 #root{
     display: flex;
     flex-direction: column;
-    font-family: sans-serif;
+    font-family: var(--font-terminal);
     margin-left: var(--space-8);
+}
+
+#search-bar{
+    display:flex;
+    flex-direction: column;
+    align-items: center;
+    margin: var(--space-4);
+}
+
+h3{
+    font: var(--font-terminal);
+    color: var(--terminal-green);
+}
+
+.title{
+    font-family: var(--font-header);
+    color: var(--terminal-green);
+    font-size: var(--text-2xl);
+    text-align: center;
+}
+
+.friend-search{
+    background-color: var(--bg-main);
+    border: solid 2px var(--border-green);
+    color: var(--terminal-green);
+    padding: var(--space-2);
+    width: 80vw;
 }
 
 .request{
@@ -15,4 +42,11 @@
     display: flex;
     flex-direction: row;
     margin-left: var(--space-6);
+    align-items: center;
+    justify-content: left;
+}
+
+.dropdown-icon{
+    margin-left: var(--space-2);
+    cursor: pointer;
 }

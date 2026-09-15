@@ -1,8 +1,42 @@
 {
+  "_chunk-Bh1tDfsg.js": {
+    "file": "assets/chunk-Bh1tDfsg.js",
+    "name": "chunk"
+  },
+  "_free-solid-svg-icons-BS8MOVLV.js": {
+    "file": "assets/free-solid-svg-icons-BS8MOVLV.js",
+    "name": "free-solid-svg-icons",
+    "imports": [
+      "_chunk-Bh1tDfsg.js"
+    ]
+  },
   "assets/index.js": {
     "file": "js/index-bundle.js",
     "name": "index",
     "src": "assets/index.js",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_chunk-Bh1tDfsg.js"
+    ]
+  },
+  "assets/pages/chats.jsx": {
+    "file": "js/chats-bundle.js",
+    "name": "chats",
+    "src": "assets/pages/chats.jsx",
+    "isEntry": true,
+    "imports": [
+      "_chunk-Bh1tDfsg.js",
+      "_free-solid-svg-icons-BS8MOVLV.js"
+    ]
+  },
+  "assets/pages/friends.jsx": {
+    "file": "js/friends-bundle.js",
+    "name": "friends",
+    "src": "assets/pages/friends.jsx",
+    "isEntry": true,
+    "imports": [
+      "_chunk-Bh1tDfsg.js",
+      "_free-solid-svg-icons-BS8MOVLV.js"
+    ]
   }
 }

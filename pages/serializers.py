@@ -12,6 +12,7 @@ class ChatSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "owner")
 
     def get_unread_count(self, obj):
+        """Return this Chat's unread count for the requesting user."""
         request = self.context.get("request")
         if not request or request.user.is_anonymous:
             return 0
@@ -97,9 +98,11 @@ class AttachmentSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "name", "size")
 
     def get_name(self, obj):
+        """Return the stored file's basename for display."""
         return obj.file.name.rsplit("/", 1)[-1] if obj.file else ""
 
     def get_size(self, obj):
+        """Return the stored file size, or zero when no file exists."""
         return obj.file.size if obj.file else 0
 
 

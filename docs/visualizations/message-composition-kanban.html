@@ -1,0 +1,277 @@
+<div id="message-composition-kanban">
+  <style>
+    #message-composition-kanban .board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+      align-items: start;
+    }
+    #message-composition-kanban .lane {
+      min-width: 0;
+    }
+    #message-composition-kanban .lane-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    #message-composition-kanban .stack {
+      display: grid;
+      gap: 12px;
+    }
+    #message-composition-kanban .phase-mark {
+      height: 6px;
+      margin-bottom: 12px;
+      border-radius: 999px;
+      background: var(--phase-color);
+    }
+    #message-composition-kanban .foundation { --phase-color: var(--viz-series-1); }
+    #message-composition-kanban .parallel { --phase-color: var(--viz-series-2); }
+    #message-composition-kanban .serial { --phase-color: var(--viz-series-3); }
+    #message-composition-kanban .finish { --phase-color: var(--viz-series-4); }
+    #message-composition-kanban details.card {
+      margin: 0;
+    }
+    #message-composition-kanban summary {
+      cursor: pointer;
+      list-style: none;
+    }
+    #message-composition-kanban summary::-webkit-details-marker {
+      display: none;
+    }
+    #message-composition-kanban .issue-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    #message-composition-kanban .issue-title {
+      margin: 0;
+    }
+    #message-composition-kanban .dependency {
+      margin-top: 8px;
+    }
+    #message-composition-kanban .details-body {
+      margin-top: 12px;
+    }
+    #message-composition-kanban .details-body ul {
+      margin-bottom: 10px;
+      padding-left: 20px;
+    }
+    #message-composition-kanban .sequence {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    #message-composition-kanban .sequence-step {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #message-composition-kanban .phase-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--phase-color);
+    }
+    @media (max-width: 860px) {
+      #message-composition-kanban .board {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 520px) {
+      #message-composition-kanban .board {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <h2>Atomic Message Composition — execution board</h2>
+  <div class="sequence text-small text-muted" aria-label="Recommended sequence">
+    <span class="sequence-step foundation"><span class="phase-dot" aria-hidden="true"></span>Foundation</span>
+    <span aria-hidden="true">→</span>
+    <span class="sequence-step parallel"><span class="phase-dot" aria-hidden="true"></span>Parallel build</span>
+    <span aria-hidden="true">→</span>
+    <span class="sequence-step serial"><span class="phase-dot" aria-hidden="true"></span>Serial mutation</span>
+    <span aria-hidden="true">→</span>
+    <span class="sequence-step finish"><span class="phase-dot" aria-hidden="true"></span>Integrate &amp; migrate</span>
+  </div>
+
+  <div class="board">
+    <section class="lane foundation" aria-labelledby="foundation-title">
+      <div class="lane-head">
+        <h3 id="foundation-title">Foundation</h3>
+        <span class="viz-badge">Waves 1–2</span>
+      </div>
+      <div class="phase-mark" aria-hidden="true"></div>
+      <div class="stack">
+        <details class="card" open>
+          <summary>
+            <div class="issue-meta"><strong>ISSUE-1</strong><span class="viz-badge">High</span></div>
+            <h3 class="issue-title">Expand Message and Attachment state</h3>
+            <p class="text-small text-muted dependency">Depends on: none</p>
+          </summary>
+          <div class="details-body">
+            <hr />
+            <p>Migration-safe fields, versioning, tombstones, ownership metadata, and private local storage.</p>
+            <strong>Done when</strong>
+            <ul>
+              <li>Existing Messages remain readable.</li>
+              <li>Linked Attachments remain owned.</li>
+              <li>Private generated paths work.</li>
+            </ul>
+            <p class="text-small"><strong>Verify:</strong> migration tests, <code>makemigrations --check</code>, Django checks</p>
+          </div>
+        </details>
+
+        <details class="card" open>
+          <summary>
+            <div class="issue-meta"><strong>ISSUE-2</strong><span class="viz-badge">High</span></div>
+            <h3 class="issue-title">Deliver atomic creation and protected files</h3>
+            <p class="text-small text-muted dependency">Depends on: ISSUE-1</p>
+          </summary>
+          <div class="details-body">
+            <hr />
+            <p>Deep Message Composition interface, multipart creation, idempotency, validation, unread accounting, and authorized delivery.</p>
+            <strong>Done when</strong>
+            <ul>
+              <li>Composition is all-or-nothing.</li>
+              <li>Retries create one Message.</li>
+              <li>Non-members cannot fetch files.</li>
+              <li>Live creation follows commit.</li>
+            </ul>
+            <p class="text-small"><strong>Verify:</strong> interface, DRF, Channels, and cleanup tests</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="lane parallel" aria-labelledby="parallel-title">
+      <div class="lane-head">
+        <h3 id="parallel-title">Parallel build</h3>
+        <span class="viz-badge">Wave 3</span>
+      </div>
+      <div class="phase-mark" aria-hidden="true"></div>
+      <div class="stack">
+        <details class="card">
+          <summary>
+            <div class="issue-meta"><strong>ISSUE-3</strong><span class="viz-badge">Medium</span></div>
+            <h3 class="issue-title">Move browser creation to HTTP</h3>
+            <p class="text-small text-muted dependency">Depends on: ISSUE-2</p>
+          </summary>
+          <div class="details-body">
+            <hr />
+            <p>One multipart request, stable retry key, draft preservation, canonical rendering, and live-event deduplication.</p>
+            <strong>Done when</strong>
+            <ul>
+              <li>Messages render exactly once.</li>
+              <li>Failed drafts remain intact.</li>
+              <li>Attachments use protected URLs.</li>
+            </ul>
+            <p class="text-small"><strong>Verify:</strong> Vitest, browser creation test, production build</p>
+          </div>
+        </details>
+
+        <details class="card">
+          <summary>
+            <div class="issue-meta"><strong>ISSUE-4</strong><span class="viz-badge">High</span></div>
+            <h3 class="issue-title">Add atomic author-only editing</h3>
+            <p class="text-small text-muted dependency">Depends on: ISSUE-2</p>
+          </summary>
+          <div class="details-body">
+            <hr />
+            <p>Version-protected text and Attachment replacement with canonical responses and post-commit live updates.</p>
+            <strong>Done when</strong>
+            <ul>
+              <li>Only current authors can edit.</li>
+              <li>Stale versions return conflict.</li>
+              <li>Failed edits preserve state.</li>
+            </ul>
+            <p class="text-small"><strong>Verify:</strong> interface, multipart PATCH, and Channels tests</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="lane serial" aria-labelledby="serial-title">
+      <div class="lane-head">
+        <h3 id="serial-title">Serial mutation</h3>
+        <span class="viz-badge">Wave 4</span>
+      </div>
+      <div class="phase-mark" aria-hidden="true"></div>
+      <div class="stack">
+        <details class="card" open>
+          <summary>
+            <div class="issue-meta"><strong>ISSUE-5</strong><span class="viz-badge">High</span></div>
+            <h3 class="issue-title">Add invisible idempotent deletion</h3>
+            <p class="text-small text-muted dependency">Depends on: ISSUE-2 · scheduled after ISSUE-4 to avoid overlap</p>
+          </summary>
+          <div class="details-body">
+            <hr />
+            <p>Author-only deletion removes content and files, retains one internal tombstone, and broadcasts removal.</p>
+            <strong>Done when</strong>
+            <ul>
+              <li>Deleted Messages vanish everywhere.</li>
+              <li>Tombstones never enter history.</li>
+              <li>Repeated deletion is stable.</li>
+              <li>Unread counts do not change.</li>
+            </ul>
+            <p class="text-small"><strong>Verify:</strong> deletion, privacy, cleanup, and event tests</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="lane finish" aria-labelledby="finish-title">
+      <div class="lane-head">
+        <h3 id="finish-title">Integrate &amp; migrate</h3>
+        <span class="viz-badge">Waves 5–6</span>
+      </div>
+      <div class="phase-mark" aria-hidden="true"></div>
+      <div class="stack">
+        <details class="card">
+          <summary>
+            <div class="issue-meta"><strong>ISSUE-6</strong><span class="viz-badge">High</span></div>
+            <h3 class="issue-title">Deliver browser edit and delete</h3>
+            <p class="text-small text-muted dependency">Depends on: ISSUE-3, ISSUE-4, ISSUE-5</p>
+          </summary>
+          <div class="details-body">
+            <hr />
+            <p>Author controls, conflict handling, invisible removal, and versioned cross-browser synchronization.</p>
+            <strong>Done when</strong>
+            <ul>
+              <li>Only authors see controls.</li>
+              <li>Mutations synchronize once.</li>
+              <li>Older events cannot regress state.</li>
+            </ul>
+            <p class="text-small"><strong>Verify:</strong> Vitest and two-browser Playwright scenarios</p>
+          </div>
+        </details>
+
+        <details class="card" open>
+          <summary>
+            <div class="issue-meta"><strong>ISSUE-7</strong><span class="viz-badge">High</span></div>
+            <h3 class="issue-title">Retire legacy paths safely</h3>
+            <p class="text-small text-muted dependency">Depends on: ISSUE-2 through ISSUE-6</p>
+          </summary>
+          <div class="details-body">
+            <hr />
+            <p>Inventory and migrate data, remove JSON and orphan uploads, disable inbound WebSocket writes, and enforce final ownership.</p>
+            <strong>Done when</strong>
+            <ul>
+              <li>Migration reports every count.</li>
+              <li>Linked files remain available.</li>
+              <li>Legacy writes are gone.</li>
+              <li>All test suites pass.</li>
+            </ul>
+            <p class="text-small"><strong>Verify:</strong> copied-data migration, Django, Vitest, build, Playwright, access check</p>
+          </div>
+        </details>
+      </div>
+    </section>
+  </div>
+</div>

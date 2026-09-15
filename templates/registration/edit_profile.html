@@ -1,0 +1,15 @@
+{% extends "loginbase.html" %}
+{% load static %}
+
+{% block title %}Edit Profile{% endblock title %}
+{% block styles %}<link rel="stylesheet", href="{% static 'css/edit_profile.css' %}"> {% endblock styles %}
+
+{% block content %}
+    <h1>Edit Profile</h1>
+    <hr>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Save Changes</button>
+    </form>
+{% endblock content %}

@@ -7,8 +7,8 @@ from .models import ChatMembers
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    # gets chat id from url and adds user to appropriate group in channel then connects
     async def connect(self):
+        """Accept authenticated Chat Members into the Chat's live group."""
         self.chat_id = self.scope["url_route"]["kwargs"]["chat_id"]
         self.room_group_name = f"Chat_{self.chat_id}"
 
@@ -28,15 +28,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
-    # removes user from the group and disconnects from websocket server
     async def disconnect(self, close_code):
+        """Remove the socket from its Chat group when it disconnects."""
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name,
         )
 
-    # when a messsage is recieved from the frontend saves the message in the database and sends it to the group
     async def receive(self, text_data):
+        """Validate a WebSocket submission and create its Message Composition."""
         try:
             data = json.loads(text_data)
             text = data["text"]
@@ -61,19 +61,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except NotAChatMember:
             await self.close(code=4403)
 
-    # runs for each user and the group and sends the message data back to the browser
     async def chat_message(self, event):
+        """Forward a canonical Message projection to this browser."""
         await self.send(text_data=json.dumps(event["message"]))
 
-    # saves message in the database
     @database_sync_to_async
     def is_chat_member(self, chat_id, user_id):
+        """Return whether a user currently belongs to a Chat."""
         return ChatMembers.objects.filter(chat_id=chat_id, user_id=user_id).exists()
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
+        """Subscribe an authenticated user to their unread notification group."""
         user = self.scope["user"]
 
         # Don't allow anonymous users to connect
@@ -94,6 +95,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
+        """Remove the socket from its notification group when connected."""
         if hasattr(self, "notification_group_name"):
             await self.channel_layer.group_discard(
                 self.notification_group_name,
@@ -101,6 +103,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             )
 
     async def unread_update(self, event):
+        """Forward an unread-count update to the subscribed browser."""
         await self.send(
             text_data=json.dumps(
                 {
