@@ -11,9 +11,11 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from channels.testing import WebsocketCommunicator
 from channels.layers import get_channel_layer
+from channels.db import database_sync_to_async
 
 from .models import Friends, FriendRequests, Chats, ChatMembers, Messages, Attachments
 from .consumers import ChatConsumer, NotificationConsumer
+from .message_composition import create_message_composition
 
 User = get_user_model()
 
@@ -654,7 +656,12 @@ class UnreadCountTests(TestCase):
         )
 
     def test_new_message_increments_only_other_members(self):
-        Messages.objects.create(chat=self.chat, user=self.sender, text="Hello")
+        create_message_composition(
+            chat_id=self.chat.id,
+            author=self.sender,
+            text="Hello",
+            attachments=[],
+        )
 
         self.sender_membership.refresh_from_db()
         self.receiver_membership.refresh_from_db()
@@ -1160,7 +1167,12 @@ class NotificationConsumerTests(TransactionTestCase):
         connected, _ = await comm.connect()
         self.assertTrue(connected)
 
-        await Messages.objects.acreate(chat=chat, user=sender, text="one")
+        await database_sync_to_async(create_message_composition)(
+            chat_id=chat.id,
+            author=sender,
+            text="one",
+            attachments=[],
+        )
         event = json.loads(await comm.receive_from())
 
         self.assertEqual(
@@ -1182,7 +1194,12 @@ class NotificationConsumerTests(TransactionTestCase):
         await recipient_comm.connect()
         await outsider_comm.connect()
 
-        await Messages.objects.acreate(chat=chat, user=sender, text="private")
+        await database_sync_to_async(create_message_composition)(
+            chat_id=chat.id,
+            author=sender,
+            text="private",
+            attachments=[],
+        )
 
         self.assertEqual(
             json.loads(await recipient_comm.receive_from())["unread_count"], 1

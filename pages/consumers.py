@@ -2,7 +2,8 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 
-from .models import Chats, Messages, ChatMembers
+from .message_composition import NotAChatMember, create_message_composition
+from .models import ChatMembers
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -50,56 +51,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         user = self.scope["user"]
 
-        saved_message = await self.save_message(
-            self.chat_id,
-            user,
-            text,
-            attachments,
-        )
-
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "chat_message",
-                "id": saved_message.id,
-                "text": saved_message.text,
-                "username": user.username,
-                "prof_pic": user.prof_pic.url if user.prof_pic else None,
-                "timestamp": saved_message.timestamp.isoformat(),
-                "attachments": saved_message.attachments,
-            },
-        )
+        try:
+            await database_sync_to_async(create_message_composition)(
+                chat_id=self.chat_id,
+                author=user,
+                text=text,
+                attachments=attachments,
+            )
+        except NotAChatMember:
+            await self.close(code=4403)
 
     # runs for each user and the group and sends the message data back to the browser
     async def chat_message(self, event):
-        await self.send(
-            text_data=json.dumps(
-                {
-                    "id": event["id"],
-                    "text": event["text"],
-                    "username": event["username"],
-                    "prof_pic": event["prof_pic"],
-                    "timestamp": event["timestamp"],
-                    "attachments": event["attachments"],
-                }
-            )
-        )
+        await self.send(text_data=json.dumps(event["message"]))
 
     # saves message in the database
     @database_sync_to_async
     def is_chat_member(self, chat_id, user_id):
         return ChatMembers.objects.filter(chat_id=chat_id, user_id=user_id).exists()
-
-    @database_sync_to_async
-    def save_message(self, chat_id, user, text, attachments):
-        chat = Chats.objects.get(id=chat_id)
-
-        return Messages.objects.create(
-            chat=chat,
-            user=user,
-            text=text,
-            attachments=attachments,
-        )
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):
