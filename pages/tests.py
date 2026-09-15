@@ -1,8 +1,11 @@
 import json
+import tempfile
 from django.test import TestCase, TransactionTestCase
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -10,7 +13,7 @@ from channels.testing import WebsocketCommunicator
 from channels.layers import get_channel_layer
 
 from .models import Friends, FriendRequests, Chats, ChatMembers, Messages, Attachments
-from .consumers import ChatConsumer
+from .consumers import ChatConsumer, NotificationConsumer
 
 User = get_user_model()
 
@@ -191,6 +194,9 @@ class MessagesModelTests(TestCase):
 
 class AttachmentsModelTests(TestCase):
     def setUp(self):
+        self.media_dir = tempfile.TemporaryDirectory()
+        self.media_override = self.settings(MEDIA_ROOT=self.media_dir.name)
+        self.media_override.enable()
         self.user = User.objects.create_user(username="alice", password="testpass123")
         self.chat = Chats.objects.create(
             owner=self.user, name="Test Chat", chat_type="DM"
@@ -199,42 +205,37 @@ class AttachmentsModelTests(TestCase):
             chat=self.chat, user=self.user, text="Check this out"
         )
 
+    def tearDown(self):
+        self.media_override.disable()
+        self.media_dir.cleanup()
+
     def test_create_attachment(self):
         attachment = Attachments.objects.create(
             message=self.message,
-            filename="test.png",
-            filesize=1024,
-            data="attachments/test.png",
+            file=SimpleUploadedFile("test.png", b"image-data"),
         )
-        self.assertEqual(attachment.filename, "test.png")
-        self.assertEqual(attachment.filesize, 1024)
+        self.assertTrue(attachment.file.name.endswith("test.png"))
+        self.assertEqual(attachment.file.size, 10)
         self.assertEqual(attachment.message, self.message)
 
     def test_message_can_have_multiple_attachments(self):
         Attachments.objects.create(
             message=self.message,
-            filename="a.png",
-            filesize=512,
-            data="attachments/a.png",
+            file=SimpleUploadedFile("a.png", b"a"),
         )
         Attachments.objects.create(
             message=self.message,
-            filename="b.png",
-            filesize=256,
-            data="attachments/b.png",
+            file=SimpleUploadedFile("b.png", b"b"),
         )
         self.assertEqual(Attachments.objects.filter(message=self.message).count(), 2)
 
     def test_deleting_message_deletes_attachments(self):
         Attachments.objects.create(
             message=self.message,
-            filename="test.png",
-            filesize=1024,
-            data="attachments/test.png",
+            file=SimpleUploadedFile("test.png", b"image-data"),
         )
         self.message.delete()
         self.assertEqual(Attachments.objects.count(), 0)
-
 
 class ChatAPIViewTests(TestCase):
     def setUp(self):
@@ -427,6 +428,25 @@ class FriendRequestAPIViewTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
 
+class CreateFriendRequestAPIViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.sender = User.objects.create_user(username="alice", password="testpass123")
+        self.receiver = User.objects.create_user(username="bob", password="testpass123")
+        self.client.force_authenticate(user=self.sender)
+
+    def test_create_friend_request_with_receiver_in_body(self):
+        response = self.client.post(
+            reverse("create_request_api"),
+            data={"receiver": self.receiver.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(FriendRequests.objects.count(), 1)
+        request = FriendRequests.objects.get()
+        self.assertEqual(request.sender, self.sender)
+        self.assertEqual(request.receiver, self.receiver)
 
 class MessageAPIViewTests(TestCase):
     def setUp(self):
@@ -508,6 +528,9 @@ class MessageAPIViewTests(TestCase):
 
 class AttachmentAPIViewTests(TestCase):
     def setUp(self):
+        self.media_dir = tempfile.TemporaryDirectory()
+        self.media_override = self.settings(MEDIA_ROOT=self.media_dir.name)
+        self.media_override.enable()
         self.client = APIClient()
         self.user = User.objects.create_user(username="alice", password="testpass123")
 
@@ -521,10 +544,12 @@ class AttachmentAPIViewTests(TestCase):
 
         self.attachment = Attachments.objects.create(
             message=self.message,
-            filename="test.png",
-            filesize=2048,
-            data="attachments/test.png",
+            file=SimpleUploadedFile("test.png", b"attachment-data"),
         )
+
+    def tearDown(self):
+        self.media_override.disable()
+        self.media_dir.cleanup()
 
     def test_unauthenticated_request_is_rejected(self):
         response = self.client.get(
@@ -555,9 +580,9 @@ class AttachmentAPIViewTests(TestCase):
         attachment = response.data[0]
         self.assertIn("id", attachment)
         self.assertIn("message", attachment)
-        self.assertIn("filename", attachment)
-        self.assertIn("filesize", attachment)
-        self.assertIn("data", attachment)
+        self.assertIn("name", attachment)
+        self.assertIn("size", attachment)
+        self.assertIn("file", attachment)
 
     def test_response_contains_correct_values(self):
         self.client.force_authenticate(user=self.user)
@@ -566,8 +591,8 @@ class AttachmentAPIViewTests(TestCase):
         )
         attachment = response.data[0]
         self.assertEqual(attachment["message"], self.message.id)
-        self.assertEqual(attachment["filename"], "test.png")
-        self.assertEqual(attachment["filesize"], 2048)
+        self.assertEqual(attachment["name"], "test.png")
+        self.assertEqual(attachment["size"], 15)
 
     def test_returns_empty_list_when_message_has_no_attachments(self):
         self.client.force_authenticate(user=self.user)
@@ -583,15 +608,85 @@ class AttachmentAPIViewTests(TestCase):
     def test_message_with_multiple_attachments(self):
         Attachments.objects.create(
             message=self.message,
-            filename="b.png",
-            filesize=1024,
-            data="attachments/b.png",
+            file=SimpleUploadedFile("b.png", b"second"),
         )
         self.client.force_authenticate(user=self.user)
         response = self.client.get(
             reverse("attachments_api", kwargs={"message_id": self.message.id})
         )
         self.assertEqual(len(response.data), 2)
+
+    def test_member_cannot_read_attachments_from_another_chat(self):
+        outsider = User.objects.create_user(username="outsider", password="pw")
+        self.client.force_authenticate(user=outsider)
+
+        response = self.client.get(
+            reverse("attachments_api", kwargs={"message_id": self.message.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class UnreadCountTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.sender = User.objects.create_user(
+            username="unread-sender", password="testpass123"
+        )
+        self.receiver = User.objects.create_user(
+            username="unread-receiver", password="testpass123"
+        )
+        self.outsider = User.objects.create_user(
+            username="unread-outsider", password="testpass123"
+        )
+        self.chat = Chats.objects.create(
+            owner=self.sender,
+            name="Unread Test",
+            chat_type="DM",
+        )
+        self.sender_membership = ChatMembers.objects.create(
+            chat=self.chat,
+            user=self.sender,
+        )
+        self.receiver_membership = ChatMembers.objects.create(
+            chat=self.chat,
+            user=self.receiver,
+        )
+
+    def test_new_message_increments_only_other_members(self):
+        Messages.objects.create(chat=self.chat, user=self.sender, text="Hello")
+
+        self.sender_membership.refresh_from_db()
+        self.receiver_membership.refresh_from_db()
+        self.assertEqual(self.sender_membership.unread_count, 0)
+        self.assertEqual(self.receiver_membership.unread_count, 1)
+
+    def test_member_can_mark_own_chat_as_read(self):
+        self.receiver_membership.unread_count = 4
+        self.receiver_membership.save(update_fields=["unread_count"])
+        self.client.force_authenticate(user=self.receiver)
+
+        response = self.client.post(
+            reverse("mark_chat_read_api", kwargs={"chat_id": self.chat.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"chat_id": self.chat.id, "unread_count": 0})
+        self.receiver_membership.refresh_from_db()
+        self.assertEqual(self.receiver_membership.unread_count, 0)
+
+    def test_non_member_cannot_mark_chat_as_read(self):
+        self.receiver_membership.unread_count = 4
+        self.receiver_membership.save(update_fields=["unread_count"])
+        self.client.force_authenticate(user=self.outsider)
+
+        response = self.client.post(
+            reverse("mark_chat_read_api", kwargs={"chat_id": self.chat.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.receiver_membership.refresh_from_db()
+        self.assertEqual(self.receiver_membership.unread_count, 4)
 
 
 class CurrentUserAPIViewTests(TestCase):
@@ -613,7 +708,7 @@ class CurrentUserAPIViewTests(TestCase):
     def test_response_only_contains_id_and_username(self):
         self.client.force_authenticate(user=self.user)
         response = self.client.get(reverse("me"))
-        self.assertEqual(set(response.data.keys()), {"id", "username"})
+        self.assertEqual(set(response.data.keys()), {"id", "username", "prof_pic"})
 
     def test_does_not_return_other_users_data(self):
         other_user = User.objects.create_user(username="bob", password="testpass123")
@@ -621,6 +716,269 @@ class CurrentUserAPIViewTests(TestCase):
         response = self.client.get(reverse("me"))
         self.assertNotEqual(response.data["id"], other_user.id)
         self.assertNotEqual(response.data["username"], "bob")
+
+
+class ChatMutationAPIViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.owner = User.objects.create_user(username="chat-owner", password="pw")
+        self.member = User.objects.create_user(username="chat-member", password="pw")
+        self.chat = Chats.objects.create(
+            owner=self.owner, name="Original", chat_type="Groupchat"
+        )
+        ChatMembers.objects.create(chat=self.chat, user=self.owner)
+        ChatMembers.objects.create(chat=self.chat, user=self.member)
+
+    def test_create_chat_adds_owner_membership(self):
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.post(
+            reverse("create_chat_api"),
+            {"name": "Created", "chat_type": "DM"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(
+            ChatMembers.objects.filter(
+                chat_id=response.data["id"], user=self.owner
+            ).exists()
+        )
+
+    def test_unauthenticated_user_cannot_create_chat(self):
+        response = self.client.post(
+            reverse("create_chat_api"),
+            {"name": "Created", "chat_type": "DM"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_owner_can_update_chat(self):
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.patch(
+            reverse("handle_chat_api", kwargs={"chat_id": self.chat.id}),
+            {"name": "Renamed"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.chat.refresh_from_db()
+        self.assertEqual(self.chat.name, "Renamed")
+
+    def test_non_owner_member_cannot_update_or_delete_chat(self):
+        self.client.force_authenticate(user=self.member)
+        url = reverse("handle_chat_api", kwargs={"chat_id": self.chat.id})
+
+        self.assertEqual(
+            self.client.patch(url, {"name": "Hijacked"}, format="json").status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+        self.assertEqual(self.client.delete(url).status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(Chats.objects.filter(pk=self.chat.id).exists())
+
+    def test_owner_can_delete_chat(self):
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.delete(
+            reverse("handle_chat_api", kwargs={"chat_id": self.chat.id})
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Chats.objects.filter(pk=self.chat.id).exists())
+
+
+class ChatMembersAPIViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.owner = User.objects.create_user(username="members-owner", password="pw")
+        self.member = User.objects.create_user(username="members-member", password="pw")
+        self.new_member = User.objects.create_user(username="members-new", password="pw")
+        self.outsider = User.objects.create_user(username="members-outsider", password="pw")
+        self.chat = Chats.objects.create(
+            owner=self.owner, name="Members", chat_type="Groupchat"
+        )
+        ChatMembers.objects.create(chat=self.chat, user=self.owner)
+        ChatMembers.objects.create(chat=self.chat, user=self.member)
+
+    def test_member_can_list_members(self):
+        self.client.force_authenticate(user=self.member)
+        response = self.client.get(
+            reverse("chat_members_api", kwargs={"chat_id": self.chat.id})
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual({item["user"] for item in response.data}, {self.owner.id, self.member.id})
+
+    def test_outsider_cannot_list_members(self):
+        self.client.force_authenticate(user=self.outsider)
+        response = self.client.get(
+            reverse("chat_members_api", kwargs={"chat_id": self.chat.id})
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_owner_can_add_members(self):
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.post(
+            reverse("create_members_api", kwargs={"chat_id": self.chat.id}),
+            {"members": [self.new_member.id]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(
+            ChatMembers.objects.filter(chat=self.chat, user=self.new_member).exists()
+        )
+
+    def test_non_owner_cannot_add_members(self):
+        self.client.force_authenticate(user=self.member)
+        response = self.client.post(
+            reverse("create_members_api", kwargs={"chat_id": self.chat.id}),
+            {"members": [self.new_member.id]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_owner_can_remove_another_member(self):
+        ChatMembers.objects.create(chat=self.chat, user=self.new_member)
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.delete(
+            reverse(
+                "handle_chat_members_api",
+                kwargs={"chat_id": self.chat.id, "user_id": self.member.id},
+            )
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(
+            ChatMembers.objects.filter(chat=self.chat, user=self.member).exists()
+        )
+
+    def test_outsider_cannot_remove_member(self):
+        self.client.force_authenticate(user=self.outsider)
+        response = self.client.delete(
+            reverse(
+                "handle_chat_members_api",
+                kwargs={"chat_id": self.chat.id, "user_id": self.member.id},
+            )
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(ChatMembers.objects.filter(chat=self.chat, user=self.member).exists())
+
+
+class FriendMutationAPIViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username="friend-user", password="pw")
+        self.friend = User.objects.create_user(username="friend-target", password="pw")
+
+    def test_create_friend_uses_authenticated_user(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(
+            reverse("create_friend_api"),
+            {"friend": self.friend.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Friends.objects.filter(user=self.user, friend=self.friend).exists())
+
+    def test_receiver_can_update_friend_request(self):
+        friend_request = FriendRequests.objects.create(
+            sender=self.friend, receiver=self.user
+        )
+        self.client.force_authenticate(user=self.user)
+        response = self.client.patch(
+            reverse("update_request_api", kwargs={"sender_id": self.friend.id}),
+            {"status": "Accepted"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        friend_request.refresh_from_db()
+        self.assertEqual(friend_request.status, "Accepted")
+
+    def test_non_receiver_cannot_update_friend_request(self):
+        FriendRequests.objects.create(sender=self.friend, receiver=self.user)
+        outsider = User.objects.create_user(username="request-outsider", password="pw")
+        self.client.force_authenticate(user=outsider)
+        response = self.client.patch(
+            reverse("update_request_api", kwargs={"sender_id": self.friend.id}),
+            {"status": "Accepted"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class SearchAPIViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username="searcher", password="pw")
+        self.friend = User.objects.create_user(username="matching_friend", password="pw")
+        self.stranger = User.objects.create_user(username="matching_stranger", password="pw")
+        Friends.objects.create(user=self.user, friend=self.friend)
+        self.client.force_authenticate(user=self.user)
+
+    def test_user_search_uses_path_query_and_excludes_existing_friends(self):
+        response = self.client.get(
+            reverse("search_users_api", kwargs={"q": "matching"})
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item["id"] for item in response.data], [self.stranger.id])
+
+    def test_friend_search_returns_matching_friendship(self):
+        response = self.client.get(
+            reverse("search_friends_api", kwargs={"q": "matching"})
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["friend"], self.friend.id)
+
+
+class CreateAttachmentsAPIViewTests(TestCase):
+    def setUp(self):
+        self.media_dir = tempfile.TemporaryDirectory()
+        self.media_override = self.settings(MEDIA_ROOT=self.media_dir.name)
+        self.media_override.enable()
+        self.client = APIClient()
+        self.user = User.objects.create_user(username="upload-user", password="pw")
+
+    def tearDown(self):
+        self.media_override.disable()
+        self.media_dir.cleanup()
+
+    def test_authenticated_user_can_upload_multiple_files(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(
+            reverse("create_attachments_api"),
+            {
+                "file": [
+                    SimpleUploadedFile("one.txt", b"one"),
+                    SimpleUploadedFile("two.txt", b"two"),
+                ]
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(len(response.data["attachments"]), 2)
+        self.assertEqual(Attachments.objects.count(), 2)
+
+    def test_upload_requires_a_file(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(reverse("create_attachments_api"), {})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_upload_requires_authentication(self):
+        response = self.client.post(
+            reverse("create_attachments_api"),
+            {"file": SimpleUploadedFile("one.txt", b"one")},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class PageAuthenticationTests(TestCase):
+    def test_chat_page_redirects_anonymous_user(self):
+        response = self.client.get(reverse("chats"))
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertIn(reverse("login"), response.url)
+
+    def test_friend_page_redirects_anonymous_user(self):
+        response = self.client.get(reverse("friends"))
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        self.assertIn(reverse("login"), response.url)
 
 
 # Helper to build a communicator with a fake scope
@@ -634,10 +992,20 @@ def make_communicator(chat_id, user):
     return communicator
 
 
+def make_notification_communicator(user):
+    communicator = WebsocketCommunicator(
+        NotificationConsumer.as_asgi(),
+        "/ws/notifications/",
+    )
+    communicator.scope["user"] = user
+    return communicator
+
+
 class TestChatConsumerConnect(TransactionTestCase):
     async def test_connect_success(self):
         user = await User.objects.acreate_user(username="alice", password="pw")
         chat = await Chats.objects.acreate(owner=user, name="Test Chat", chat_type="DM")
+        await ChatMembers.objects.acreate(chat=chat, user=user)
 
         comm = make_communicator(chat.id, user)
         connected, _ = await comm.connect()
@@ -648,25 +1016,58 @@ class TestChatConsumerConnect(TransactionTestCase):
     async def test_disconnect_leaves_group(self):
         user = await User.objects.acreate_user(username="bob", password="pw")
         chat = await Chats.objects.acreate(owner=user, name="Test Chat", chat_type="DM")
+        await ChatMembers.objects.acreate(chat=chat, user=user)
 
         comm = make_communicator(chat.id, user)
         await comm.connect()
         await comm.disconnect()
 
-        # No message should arrive after disconnect
-        channel_layer = get_channel_layer()
-        self.assertIsNotNone(channel_layer)
+        await get_channel_layer().group_send(
+            f"Chat_{chat.id}",
+            {
+                "type": "chat_message",
+                "text": "late",
+                "username": "bob",
+                "timestamp": "now",
+                "attachments": [],
+            },
+        )
+        self.assertTrue(await comm.receive_nothing())
+
+    async def test_anonymous_user_is_rejected(self):
+        user = await User.objects.acreate_user(username="owner", password="pw")
+        chat = await Chats.objects.acreate(owner=user, name="Test Chat", chat_type="DM")
+
+        comm = make_communicator(chat.id, AnonymousUser())
+        connected, code = await comm.connect()
+
+        self.assertFalse(connected)
+        self.assertEqual(code, 4401)
+
+    async def test_non_member_is_rejected(self):
+        owner = await User.objects.acreate_user(username="owner2", password="pw")
+        outsider = await User.objects.acreate_user(username="outsider2", password="pw")
+        chat = await Chats.objects.acreate(owner=owner, name="Test Chat", chat_type="DM")
+
+        comm = make_communicator(chat.id, outsider)
+        connected, code = await comm.connect()
+
+        self.assertFalse(connected)
+        self.assertEqual(code, 4403)
 
 
 class TestChatConsumerReceive(TransactionTestCase):
     async def test_receive_saves_and_broadcasts(self):
         user = await User.objects.acreate_user(username="carol", password="pw")
         chat = await Chats.objects.acreate(owner=user, name="Test Chat", chat_type="DM")
+        await ChatMembers.objects.acreate(chat=chat, user=user)
 
         comm = make_communicator(chat.id, user)
         await comm.connect()
 
-        await comm.send_to(text_data=json.dumps({"text": "Hello!"}))
+        await comm.send_to(
+            text_data=json.dumps({"text": "Hello!", "attachments": []})
+        )
         response = await comm.receive_from()
         data = json.loads(response)
 
@@ -683,23 +1084,29 @@ class TestChatConsumerReceive(TransactionTestCase):
     async def test_receive_invalid_json(self):
         user = await User.objects.acreate_user(username="dave", password="pw")
         chat = await Chats.objects.acreate(owner=user, name="Test Chat", chat_type="DM")
+        await ChatMembers.objects.acreate(chat=chat, user=user)
 
         comm = make_communicator(chat.id, user)
         await comm.connect()
 
         # Should not crash the server — connection stays open or closes cleanly
         await comm.send_to(text_data="not valid json {{")
-        await comm.disconnect()
+        event = await comm.receive_output()
+        self.assertEqual(event, {"type": "websocket.close", "code": 400})
+        self.assertFalse(await Messages.objects.filter(chat=chat).aexists())
 
     async def test_receive_missing_text_key(self):
         user = await User.objects.acreate_user(username="eve", password="pw")
         chat = await Chats.objects.acreate(owner=user, name="Test Chat", chat_type="DM")
+        await ChatMembers.objects.acreate(chat=chat, user=user)
 
         comm = make_communicator(chat.id, user)
         await comm.connect()
 
         await comm.send_to(text_data=json.dumps({"wrong_key": "oops"}))
-        await comm.disconnect()
+        event = await comm.receive_output()
+        self.assertEqual(event, {"type": "websocket.close", "code": 400})
+        self.assertFalse(await Messages.objects.filter(chat=chat).aexists())
 
 
 class TestChatConsumerGroupIsolation(TransactionTestCase):
@@ -711,6 +1118,8 @@ class TestChatConsumerGroupIsolation(TransactionTestCase):
         chat2 = await Chats.objects.acreate(
             owner=user, name="Test Chat2", chat_type="DM"
         )
+        await ChatMembers.objects.acreate(chat=chat1, user=user)
+        await ChatMembers.objects.acreate(chat=chat2, user=user)
 
         comm1 = make_communicator(chat1.id, user)
         comm2 = make_communicator(chat2.id, user)
@@ -718,10 +1127,66 @@ class TestChatConsumerGroupIsolation(TransactionTestCase):
         await comm1.connect()
         await comm2.connect()
 
-        await comm1.send_to(text_data=json.dumps({"text": "Only for chat1"}))
+        await comm1.send_to(
+            text_data=json.dumps({"text": "Only for chat1", "attachments": []})
+        )
+
+        response = json.loads(await comm1.receive_from())
+        self.assertEqual(response["text"], "Only for chat1")
 
         # comm2 should receive nothing
         self.assertTrue(await comm2.receive_nothing())
 
         await comm1.disconnect()
         await comm2.disconnect()
+
+
+class NotificationConsumerTests(TransactionTestCase):
+    async def test_anonymous_user_is_rejected(self):
+        comm = make_notification_communicator(AnonymousUser())
+        connected, _ = await comm.connect()
+        self.assertFalse(connected)
+
+    async def test_message_sends_recipient_unread_count(self):
+        sender = await User.objects.acreate_user(username="notify-sender", password="pw")
+        recipient = await User.objects.acreate_user(
+            username="notify-recipient", password="pw"
+        )
+        chat = await Chats.objects.acreate(owner=sender, name="Notify", chat_type="DM")
+        await ChatMembers.objects.acreate(chat=chat, user=sender)
+        await ChatMembers.objects.acreate(chat=chat, user=recipient)
+
+        comm = make_notification_communicator(recipient)
+        connected, _ = await comm.connect()
+        self.assertTrue(connected)
+
+        await Messages.objects.acreate(chat=chat, user=sender, text="one")
+        event = json.loads(await comm.receive_from())
+
+        self.assertEqual(
+            event,
+            {"type": "unread_update", "chat_id": chat.id, "unread_count": 1},
+        )
+        await comm.disconnect()
+
+    async def test_notifications_are_isolated_by_user(self):
+        sender = await User.objects.acreate_user(username="iso-sender", password="pw")
+        recipient = await User.objects.acreate_user(username="iso-recipient", password="pw")
+        outsider = await User.objects.acreate_user(username="iso-outsider", password="pw")
+        chat = await Chats.objects.acreate(owner=sender, name="Notify", chat_type="DM")
+        await ChatMembers.objects.acreate(chat=chat, user=sender)
+        await ChatMembers.objects.acreate(chat=chat, user=recipient)
+
+        recipient_comm = make_notification_communicator(recipient)
+        outsider_comm = make_notification_communicator(outsider)
+        await recipient_comm.connect()
+        await outsider_comm.connect()
+
+        await Messages.objects.acreate(chat=chat, user=sender, text="private")
+
+        self.assertEqual(
+            json.loads(await recipient_comm.receive_from())["unread_count"], 1
+        )
+        self.assertTrue(await outsider_comm.receive_nothing())
+        await recipient_comm.disconnect()
+        await outsider_comm.disconnect()

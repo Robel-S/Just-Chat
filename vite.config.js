@@ -14,7 +14,8 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 'index': path.resolve(__dirname, './assets/index.js'),
-                'hello': path.resolve(__dirname, './assets/chats.jsx'),
+                'chats': path.resolve(__dirname, './assets/pages/chats.jsx'),
+                'friends': path.resolve(__dirname, './assets/pages/friends.jsx'),
             },
             output: {
                 // Output JS bundles to js/ directory with -bundle suffix
@@ -25,8 +26,19 @@ export default defineConfig({
     server: {
         host: '0.0.0.0',
         port: 5173,
-        watch: {
-            usePolling: true,
+        warmup: {
+            clientFiles: [
+                "./assets/pages/chats.jsx",
+                "./assets/pages/friends.jsx",
+            ],
         },
+    },
+    test: {
+        include: ['assets/tests/**/*.{test,spec}.{js,jsx}'],
+        environment: 'jsdom',
+        globals: true,
+        setupFiles: './assets/tests/setup.js',
+        clearMocks: true,
+        restoreMocks: true,
     },
 });

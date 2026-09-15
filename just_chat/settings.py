@@ -162,7 +162,8 @@ DJANGO_VITE = {
     }
 }
 
-LOGIN_REDIRECT_URL = ""
+LOGIN_REDIRECT_URL = "chats"
+LOGOUT_REDIRECT_URL = "login"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
